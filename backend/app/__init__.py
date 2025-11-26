@@ -1,0 +1,3 @@
+"""
+Legitreach-Ad backend application.
+"""
