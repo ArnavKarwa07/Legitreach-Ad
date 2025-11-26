@@ -9,6 +9,7 @@ This module implements the core analysis pipeline using LangGraph:
 
 Uses Google AI Studio (Gemini) for LLM calls.
 """
+
 import json
 from typing import TypedDict, Annotated, Any
 from operator import add
@@ -30,36 +31,38 @@ settings = get_settings()
 # STATE DEFINITION
 # =============================================================================
 
+
 class AnalysisState(TypedDict):
     """
     State object passed through the LangGraph workflow.
-    
+
     Contains all data needed for analysis and accumulates results.
     """
+
     # Input data
     brand_context: dict[str, Any]
     ad_text: str
     ad_asset_id: int
     brand_id: int
-    
+
     # Prepared context (from prepare_context_node)
     prepared_prompt_context: str
-    
+
     # Component evaluation results
     component_evaluations: list[dict]
-    
+
     # Platform recommendations
     platform_recommendations: list[dict]
-    
+
     # Funnel classification
     funnel_stage: str
     funnel_confidence: float
-    
+
     # Final outputs
     overall_score: float
     summary: str
     recommendations: str
-    
+
     # Error tracking
     errors: list[str]
 
@@ -68,10 +71,11 @@ class AnalysisState(TypedDict):
 # LLM INITIALIZATION
 # =============================================================================
 
+
 def get_llm():
     """Initialize the Google Gemini LLM."""
     return ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash",
         google_api_key=settings.google_api_key,
         temperature=0.3,
         convert_system_message_to_human=True,
@@ -82,16 +86,17 @@ def get_llm():
 # NODE: PREPARE CONTEXT
 # =============================================================================
 
+
 def prepare_context_node(state: AnalysisState) -> dict:
     """
     Prepare the context for analysis by combining brand info and ad content.
-    
+
     This node formats all available information into a structured prompt context
     that subsequent nodes can use for evaluation.
     """
     brand = state["brand_context"]
     ad_text = state["ad_text"]
-    
+
     # Build brand context summary
     brand_summary = f"""
 === BRAND CONTEXT ===
@@ -125,7 +130,7 @@ Customer Objections (known): {brand.get('customer_objections', 'Not specified')}
 === OFFER COMPONENTS TO EVALUATE ===
 {get_components_prompt_context()}
 """
-    
+
     return {
         "prepared_prompt_context": prepared_context,
         "errors": [],
@@ -175,21 +180,21 @@ Analyze thoroughly and return ONLY the JSON object, no additional text."""
 def component_evaluation_node(state: AnalysisState) -> dict:
     """
     Evaluate the ad against all 10 offer components.
-    
+
     Uses LLM to analyze each component and generate scores + analysis.
     """
     llm = get_llm()
     context = state["prepared_prompt_context"]
-    
+
     try:
         messages = [
             SystemMessage(content=COMPONENT_EVAL_SYSTEM_PROMPT),
-            HumanMessage(content=COMPONENT_EVAL_USER_PROMPT.format(context=context))
+            HumanMessage(content=COMPONENT_EVAL_USER_PROMPT.format(context=context)),
         ]
-        
+
         response = llm.invoke(messages)
         response_text = response.content.strip()
-        
+
         # Clean up response (remove markdown code blocks if present)
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
@@ -197,15 +202,15 @@ def component_evaluation_node(state: AnalysisState) -> dict:
                 response_text = response_text[4:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-        
+
         result = json.loads(response_text.strip())
         components = result.get("components", [])
-        
+
         return {
             "component_evaluations": components,
             "errors": [],
         }
-        
+
     except json.JSONDecodeError as e:
         return {
             "component_evaluations": [],
@@ -253,16 +258,16 @@ def funnel_classification_node(state: AnalysisState) -> dict:
     """
     llm = get_llm()
     context = state["prepared_prompt_context"]
-    
+
     try:
         messages = [
             SystemMessage(content=FUNNEL_SYSTEM_PROMPT),
-            HumanMessage(content=FUNNEL_USER_PROMPT.format(context=context))
+            HumanMessage(content=FUNNEL_USER_PROMPT.format(context=context)),
         ]
-        
+
         response = llm.invoke(messages)
         response_text = response.content.strip()
-        
+
         # Clean up response
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
@@ -270,15 +275,15 @@ def funnel_classification_node(state: AnalysisState) -> dict:
                 response_text = response_text[4:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-        
+
         result = json.loads(response_text.strip())
-        
+
         return {
             "funnel_stage": result.get("funnel_stage", "MOF"),
             "funnel_confidence": result.get("confidence", 0.5),
             "errors": [],
         }
-        
+
     except Exception as e:
         return {
             "funnel_stage": "MOF",
@@ -339,26 +344,30 @@ def platform_recommendation_node(state: AnalysisState) -> dict:
     context = state["prepared_prompt_context"]
     components = state.get("component_evaluations", [])
     funnel_stage = state.get("funnel_stage", "MOF")
-    
+
     # Build component summary
-    component_summary = "\n".join([
-        f"- {c.get('key', 'N/A')} ({c.get('name', 'N/A')}): Score {c.get('score', 0)}/10 - {'Present' if c.get('is_present') else 'Absent'}"
-        for c in components
-    ])
-    
+    component_summary = "\n".join(
+        [
+            f"- {c.get('key', 'N/A')} ({c.get('name', 'N/A')}): Score {c.get('score', 0)}/10 - {'Present' if c.get('is_present') else 'Absent'}"
+            for c in components
+        ]
+    )
+
     try:
         messages = [
             SystemMessage(content=PLATFORM_SYSTEM_PROMPT),
-            HumanMessage(content=PLATFORM_USER_PROMPT.format(
-                context=context,
-                component_summary=component_summary,
-                funnel_stage=funnel_stage
-            ))
+            HumanMessage(
+                content=PLATFORM_USER_PROMPT.format(
+                    context=context,
+                    component_summary=component_summary,
+                    funnel_stage=funnel_stage,
+                )
+            ),
         ]
-        
+
         response = llm.invoke(messages)
         response_text = response.content.strip()
-        
+
         # Clean up response
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
@@ -366,15 +375,15 @@ def platform_recommendation_node(state: AnalysisState) -> dict:
                 response_text = response_text[4:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-        
+
         result = json.loads(response_text.strip())
         platforms = result.get("platforms", [])
-        
+
         return {
             "platform_recommendations": platforms,
             "errors": [],
         }
-        
+
     except Exception as e:
         return {
             "platform_recommendations": [],
@@ -421,39 +430,45 @@ def final_assembler_node(state: AnalysisState) -> dict:
     funnel_stage = state.get("funnel_stage", "MOF")
     funnel_confidence = state.get("funnel_confidence", 0.5)
     platforms = state.get("platform_recommendations", [])
-    
+
     # Calculate overall score (average of component scores)
     if components:
         scores = [c.get("score", 0) for c in components]
         overall_score = sum(scores) / len(scores)
     else:
         overall_score = 0.0
-    
+
     # Build details for summary
-    component_details = "\n".join([
-        f"- {c.get('key')}: {c.get('name')} - Score: {c.get('score')}/10\n  Analysis: {c.get('analysis', 'N/A')}"
-        for c in components
-    ])
-    
-    platform_details = "\n".join([
-        f"- {p.get('platform')}: Score {p.get('score')}/100 - {p.get('reason', 'N/A')}"
-        for p in platforms
-    ])
-    
+    component_details = "\n".join(
+        [
+            f"- {c.get('key')}: {c.get('name')} - Score: {c.get('score')}/10\n  Analysis: {c.get('analysis', 'N/A')}"
+            for c in components
+        ]
+    )
+
+    platform_details = "\n".join(
+        [
+            f"- {p.get('platform')}: Score {p.get('score')}/100 - {p.get('reason', 'N/A')}"
+            for p in platforms
+        ]
+    )
+
     try:
         messages = [
             SystemMessage(content=SUMMARY_SYSTEM_PROMPT),
-            HumanMessage(content=SUMMARY_USER_PROMPT.format(
-                component_details=component_details,
-                funnel_stage=funnel_stage,
-                funnel_confidence=funnel_confidence,
-                platform_details=platform_details
-            ))
+            HumanMessage(
+                content=SUMMARY_USER_PROMPT.format(
+                    component_details=component_details,
+                    funnel_stage=funnel_stage,
+                    funnel_confidence=funnel_confidence,
+                    platform_details=platform_details,
+                )
+            ),
         ]
-        
+
         response = llm.invoke(messages)
         response_text = response.content.strip()
-        
+
         # Clean up response
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
@@ -461,16 +476,18 @@ def final_assembler_node(state: AnalysisState) -> dict:
                 response_text = response_text[4:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-        
+
         result = json.loads(response_text.strip())
-        
+
         return {
             "overall_score": round(overall_score, 2),
             "summary": result.get("summary", "Analysis complete."),
-            "recommendations": result.get("recommendations", "No specific recommendations."),
+            "recommendations": result.get(
+                "recommendations", "No specific recommendations."
+            ),
             "errors": [],
         }
-        
+
     except Exception as e:
         return {
             "overall_score": round(overall_score, 2),
@@ -484,23 +501,24 @@ def final_assembler_node(state: AnalysisState) -> dict:
 # GRAPH DEFINITION
 # =============================================================================
 
+
 def create_analysis_graph() -> StateGraph:
     """
     Create the LangGraph workflow for ad analysis.
-    
+
     Flow:
     prepare_context -> component_evaluation -> funnel_classification -> platform_recommendation -> final_assembler -> END
     """
     # Initialize the graph with our state type
     workflow = StateGraph(AnalysisState)
-    
+
     # Add nodes
     workflow.add_node("prepare_context", prepare_context_node)
     workflow.add_node("component_evaluation", component_evaluation_node)
     workflow.add_node("funnel_classification", funnel_classification_node)
     workflow.add_node("platform_recommendation", platform_recommendation_node)
     workflow.add_node("final_assembler", final_assembler_node)
-    
+
     # Define edges (linear flow for now)
     workflow.set_entry_point("prepare_context")
     workflow.add_edge("prepare_context", "component_evaluation")
@@ -508,7 +526,7 @@ def create_analysis_graph() -> StateGraph:
     workflow.add_edge("funnel_classification", "platform_recommendation")
     workflow.add_edge("platform_recommendation", "final_assembler")
     workflow.add_edge("final_assembler", END)
-    
+
     return workflow
 
 

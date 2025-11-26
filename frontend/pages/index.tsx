@@ -29,15 +29,24 @@ export default function Home() {
             Creative Profiler &{" "}
             <span className="text-primary-600">Funnel Mapper</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
             Analyze your ads against proven offer components. Understand what
             your creative is, where it should be used, and what components are
             missing.
           </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Try the live demo to see it in action with real ad examples →
+          </p>
 
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/sign-up" className="btn-primary text-lg px-8 py-3">
               Get Started Free
+            </Link>
+            <Link
+              href="/demo"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg px-8 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+            >
+              🎯 View Live Demo
             </Link>
             <Link href="/sign-in" className="btn-secondary text-lg px-8 py-3">
               Sign In

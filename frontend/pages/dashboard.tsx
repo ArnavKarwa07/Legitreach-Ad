@@ -110,7 +110,7 @@ export default function DashboardPage() {
             >
               {brands.map((brand) => (
                 <option key={brand.id} value={brand.id}>
-                  {brand.name}
+                  {brand.brand_name}
                 </option>
               ))}
             </select>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
               <div>
                 <span className="text-gray-500">Voice:</span>{" "}
                 <span className="font-medium">
-                  {selectedBrand.brand_voice || "Not specified"}
+                  {selectedBrand.tone_of_voice || "Not specified"}
                 </span>
               </div>
               <div className="md:col-span-2">
@@ -284,7 +284,7 @@ function UploadModal({
   onClose,
   onSuccess,
 }: {
-  brandId: string;
+  brandId: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -306,9 +306,8 @@ function UploadModal({
       // Create asset
       const asset = await api.createAsset({
         brand_id: brandId,
-        name,
-        asset_type: assetType,
-        text_content: textContent,
+        title: name,
+        ad_text: textContent,
       });
 
       // Start analysis

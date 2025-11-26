@@ -12,11 +12,11 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<BrandCreate>({
-    name: "",
+    brand_name: "",
     industry: "",
     target_audience: "",
-    brand_voice: "",
-    product_description: "",
+    tone_of_voice: "",
+    main_offer: "",
   });
 
   useEffect(() => {
@@ -134,8 +134,8 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="brand_name"
+                    value={formData.brand_name}
                     onChange={handleChange}
                     className="input"
                     placeholder="e.g., Acme Inc."
@@ -189,8 +189,8 @@ export default function OnboardingPage() {
                   </label>
                   <input
                     type="text"
-                    name="brand_voice"
-                    value={formData.brand_voice || ""}
+                    name="tone_of_voice"
+                    value={formData.tone_of_voice || ""}
                     onChange={handleChange}
                     className="input"
                     placeholder="e.g., Professional, friendly, authoritative"
@@ -210,8 +210,8 @@ export default function OnboardingPage() {
                     Describe your product or service *
                   </label>
                   <textarea
-                    name="product_description"
-                    value={formData.product_description}
+                    name="main_offer"
+                    value={formData.main_offer || ""}
                     onChange={handleChange}
                     className="input min-h-[150px]"
                     placeholder="e.g., We provide an AI-powered marketing automation platform that helps businesses create, schedule, and analyze their social media content..."
@@ -241,7 +241,7 @@ export default function OnboardingPage() {
                 onClick={handleNext}
                 className="btn-primary"
                 disabled={
-                  (step === 1 && (!formData.name || !formData.industry)) ||
+                  (step === 1 && (!formData.brand_name || !formData.industry)) ||
                   (step === 2 && !formData.target_audience)
                 }
               >
@@ -251,7 +251,7 @@ export default function OnboardingPage() {
               <button
                 onClick={handleSubmit}
                 className="btn-primary"
-                disabled={loading || !formData.product_description}
+                disabled={loading || !formData.main_offer}
               >
                 {loading ? "Creating..." : "Complete Setup"}
               </button>

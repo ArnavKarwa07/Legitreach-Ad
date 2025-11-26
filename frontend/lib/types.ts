@@ -15,40 +15,60 @@ export interface User {
 }
 
 export interface BrandCreate {
-  name: string;
-  industry: string;
-  target_audience: string;
-  brand_voice?: string;
-  product_description: string;
+  brand_name: string;
+  industry?: string;
+  niche?: string;
+  target_audience?: string;
+  main_offer?: string;
+  price_point?: string;
+  positioning?: string;
+  tone_of_voice?: string;
+  main_goals?: string;
+  dream_outcome?: string;
+  proof_points?: string;
+  customer_pains?: string;
+  customer_desires?: string;
+  customer_objections?: string;
+  additional_context?: Record<string, any>;
 }
 
 export interface Brand {
-  id: string;
-  user_id: string;
-  name: string;
-  industry: string;
-  target_audience: string;
-  brand_voice: string | null;
-  product_description: string;
+  id: number;
+  user_id: number;
+  brand_name: string;
+  industry: string | null;
+  niche: string | null;
+  target_audience: string | null;
+  main_offer: string | null;
+  price_point: string | null;
+  positioning: string | null;
+  tone_of_voice: string | null;
+  main_goals: string | null;
+  dream_outcome: string | null;
+  proof_points: string | null;
+  customer_pains: string | null;
+  customer_desires: string | null;
+  customer_objections: string | null;
+  raw_brand_context_json: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface AdAssetCreate {
-  brand_id: string;
-  name: string;
-  asset_type: AdAssetType;
-  text_content?: string;
-  file_url?: string;
+  brand_id: number;
+  title?: string;
+  ad_text?: string;
+  file?: File;
 }
 
 export interface AdAsset {
-  id: string;
-  brand_id: string;
-  name: string;
+  id: number;
+  brand_id: number;
+  title: string | null;
   asset_type: AdAssetType;
-  text_content: string | null;
-  file_url: string | null;
+  original_text: string | null;
+  extracted_text: string | null;
+  file_path: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -34,6 +34,18 @@ async function getClerkToken(): Promise<string | null> {
   return null;
 }
 
+async function getClerkUserId(): Promise<string | null> {
+  // Get the Clerk user ID
+  if (typeof window !== "undefined") {
+    // @ts-expect-error - Clerk is loaded globally
+    const clerk = window.Clerk;
+    if (clerk && clerk.user) {
+      return clerk.user.id;
+    }
+  }
+  return null;
+}
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -41,9 +53,11 @@ async function apiRequest<T>(
   const url = `${API_URL}${endpoint}`;
 
   const token = await getClerkToken();
+  const userId = await getClerkUserId();
 
   const headers: HeadersInit = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(userId ? { "X-Clerk-User-Id": userId } : {}),
     ...options.headers,
   };
 
@@ -71,14 +85,16 @@ async function apiRequest<T>(
 export const api = {
   // Brand API
   async createBrand(data: BrandCreate): Promise<Brand> {
-    return apiRequest<Brand>("/api/brands", {
+    return apiRequest<Brand>("/api/brands/onboard", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
   async getBrands(): Promise<Brand[]> {
-    return apiRequest<Brand[]>("/api/brands");
+    // Get the current user's brand
+    const brand = await apiRequest<Brand>("/api/brands/me");
+    return brand ? [brand] : [];
   },
 
   async getBrand(brandId: string): Promise<Brand> {
@@ -87,33 +103,42 @@ export const api = {
 
   // Ad Asset API
   async createAsset(data: AdAssetCreate): Promise<AdAsset> {
-    return apiRequest<AdAsset>("/api/assets", {
+    const formData = new FormData();
+    formData.append("brand_id", data.brand_id.toString());
+    if (data.title) formData.append("title", data.title);
+    if (data.ad_text) formData.append("ad_text", data.ad_text);
+    if (data.file) formData.append("file", data.file);
+
+    return apiRequest<AdAsset>("/api/ad-assets", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: formData,
     });
   },
 
-  async getAssets(brandId: string): Promise<AdAsset[]> {
-    return apiRequest<AdAsset[]>(`/api/assets?brand_id=${brandId}`);
+  async getAssets(brandId: number): Promise<AdAsset[]> {
+    return apiRequest<AdAsset[]>(`/api/ad-assets?brand_id=${brandId}`);
   },
 
-  async getAsset(assetId: string): Promise<AdAsset> {
-    return apiRequest<AdAsset>(`/api/assets/${assetId}`);
+  async getAsset(assetId: number): Promise<AdAsset> {
+    return apiRequest<AdAsset>(`/api/ad-assets/${assetId}`);
   },
 
   // Ad Analysis API
-  async createAnalysis(adAssetId: string): Promise<AdAnalysis> {
-    return apiRequest<AdAnalysis>("/api/analyses", {
+  async createAnalysis(adAssetId: number): Promise<AdAnalysis> {
+    return apiRequest<AdAnalysis>("/api/ad-analyses/run", {
       method: "POST",
       body: JSON.stringify({ ad_asset_id: adAssetId }),
     });
   },
 
-  async getAnalyses(brandId: string): Promise<AdAnalysis[]> {
-    return apiRequest<AdAnalysis[]>(`/api/analyses?brand_id=${brandId}`);
+  async getAnalyses(brandId: number): Promise<AdAnalysis[]> {
+    const response = await apiRequest<{ analyses: any[]; total: number }>(
+      `/api/ad-analyses?brand_id=${brandId}`
+    );
+    return response.analyses;
   },
 
-  async getAnalysis(analysisId: string): Promise<AdAnalysis> {
-    return apiRequest<AdAnalysis>(`/api/analyses/${analysisId}`);
+  async getAnalysis(analysisId: number): Promise<AdAnalysis> {
+    return apiRequest<AdAnalysis>(`/api/ad-analyses/${analysisId}`);
   },
 };
