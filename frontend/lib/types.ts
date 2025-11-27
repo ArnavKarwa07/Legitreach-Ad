@@ -74,27 +74,34 @@ export interface AdAsset {
 }
 
 export interface OfferComponentScore {
-  id: string;
-  analysis_id: string;
-  component_id: string;
+  id: number;
+  ad_analysis_id: number;
+  component_key: string;
   component_name: string;
-  detected: boolean;
-  score: number;
-  explanation: string | null;
-  suggestions: string | null;
+  is_present: boolean;
+  score: number; // 0-10 scale from backend
+  analysis: string | null;
+  what_is_conveyed: string | null;
+  suggested_improvements: string | null;
+  created_at: string;
+}
+
+export interface PlatformRecommendation {
+  platform: string;
+  score: number; // 0-100 scale
+  reason: string;
 }
 
 export interface AdAnalysis {
-  id: string;
-  ad_asset_id: string;
-  brand_id: string;
-  status: AnalysisStatus;
-  overall_score: number | null;
+  id: number;
+  ad_asset_id: number;
+  brand_id: number;
+  overall_score: number; // 0-100 scale
   funnel_stage: FunnelStage | null;
-  confidence_score: number | null;
-  platform_recommendations: Record<string, number> | null;
+  funnel_confidence: number | null; // 0-1 scale
+  platform_recommendations: PlatformRecommendation[];
   summary: string | null;
-  recommendations: string[];
+  recommendations: string | null; // String with newlines, not array
   component_scores: OfferComponentScore[];
   created_at: string;
   updated_at: string;

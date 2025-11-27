@@ -431,10 +431,10 @@ def final_assembler_node(state: AnalysisState) -> dict:
     funnel_confidence = state.get("funnel_confidence", 0.5)
     platforms = state.get("platform_recommendations", [])
 
-    # Calculate overall score (average of component scores)
+    # Calculate overall score (average of component scores, converted to 0-100 scale)
     if components:
         scores = [c.get("score", 0) for c in components]
-        overall_score = sum(scores) / len(scores)
+        overall_score = (sum(scores) / len(scores)) * 10  # Convert 0-10 to 0-100
     else:
         overall_score = 0.0
 
@@ -480,7 +480,9 @@ def final_assembler_node(state: AnalysisState) -> dict:
         result = json.loads(response_text.strip())
 
         return {
-            "overall_score": round(overall_score, 2),
+            "overall_score": round(
+                min(overall_score, 100.0), 1
+            ),  # Cap at 100 and round to 1 decimal
             "summary": result.get("summary", "Analysis complete."),
             "recommendations": result.get(
                 "recommendations", "No specific recommendations."
@@ -490,7 +492,9 @@ def final_assembler_node(state: AnalysisState) -> dict:
 
     except Exception as e:
         return {
-            "overall_score": round(overall_score, 2),
+            "overall_score": round(
+                min(overall_score, 100.0), 1
+            ),  # Cap at 100 and round to 1 decimal
             "summary": f"Analysis completed with {len(components)} components evaluated.",
             "recommendations": "Review component scores for specific improvement areas.",
             "errors": [f"Summary generation failed: {str(e)}"],

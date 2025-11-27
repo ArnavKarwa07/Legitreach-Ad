@@ -19,6 +19,23 @@ export default function DashboardPage() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<AdAnalysis | null>(
     null
   );
+  const [loadingAnalysisDetails, setLoadingAnalysisDetails] = useState(false);
+
+  const handleViewAnalysis = async (analysis: AdAnalysis) => {
+    setLoadingAnalysisDetails(true);
+    setShowAnalysisModal(true);
+    setSelectedAnalysis(analysis); // Show summary first
+    
+    try {
+      // Fetch full analysis with all details
+      const fullAnalysis = await api.getAnalysis(analysis.id);
+      setSelectedAnalysis(fullAnalysis);
+    } catch (err) {
+      console.error("Failed to fetch analysis details:", err);
+    } finally {
+      setLoadingAnalysisDetails(false);
+    }
+  };
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -176,7 +193,7 @@ export default function DashboardPage() {
                       Overall Score
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
-                      Status
+                      Date
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
                       Actions
@@ -213,31 +230,18 @@ export default function DashboardPage() {
                       <td className="py-3 px-4">
                         <span className="text-sm">
                           {analysis.overall_score
-                            ? `${Math.round(analysis.overall_score * 100)}%`
+                            ? `${Math.round(analysis.overall_score)}%`
                             : "-"}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            analysis.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : analysis.status === "processing"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : analysis.status === "failed"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {analysis.status}
+                        <span className="text-xs text-gray-500">
+                          {new Date(analysis.created_at).toLocaleDateString()}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <button
-                          onClick={() => {
-                            setSelectedAnalysis(analysis);
-                            setShowAnalysisModal(true);
-                          }}
+                          onClick={() => handleViewAnalysis(analysis)}
                           className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                         >
                           View Details
@@ -268,6 +272,7 @@ export default function DashboardPage() {
       {showAnalysisModal && selectedAnalysis && (
         <AnalysisModal
           analysis={selectedAnalysis}
+          loading={loadingAnalysisDetails}
           onClose={() => {
             setShowAnalysisModal(false);
             setSelectedAnalysis(null);
@@ -431,158 +436,238 @@ function UploadModal({
 // Analysis Modal Component
 function AnalysisModal({
   analysis,
+  loading,
   onClose,
 }: {
   analysis: AdAnalysis;
+  loading?: boolean;
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Analysis Details</h2>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8 overflow-hidden border border-gray-200">
+        {/* Header */}
+        <div className="bg-primary-600 px-8 py-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mt-32 -mr-32"></div>
+          <div className="relative flex items-start justify-between">
+            <div className="flex-1 pr-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  ANALYSIS REPORT
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-1">Ad Analysis Details</h2>
+              <p className="text-blue-100 text-sm">Detailed component breakdown and recommendations</p>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-all"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
+        </div>
 
-          {/* Overview */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-primary-600">
-                {analysis.overall_score
-                  ? `${Math.round(analysis.overall_score * 100)}%`
-                  : "-"}
-              </div>
-              <div className="text-sm text-gray-500">Overall Score</div>
+        <div className="p-8 max-h-[calc(90vh-8rem)] overflow-y-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mb-4"></div>
+              <p className="text-gray-600 font-medium">Loading detailed analysis...</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-primary-600">
+          ) : (
+            <>
+              {/* Overview Metrics */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="bg-blue-600 rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all">
+              <div className="text-5xl font-bold text-white mb-2">
+                {analysis.overall_score ? `${Math.round(analysis.overall_score)}%` : "-"}
+              </div>
+              <div className="text-sm font-semibold text-blue-100 uppercase tracking-wide">Overall Score</div>
+            </div>
+            <div className="bg-green-600 rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all">
+              <div className="text-5xl font-bold text-white mb-2">
                 {analysis.funnel_stage || "-"}
               </div>
-              <div className="text-sm text-gray-500">Funnel Stage</div>
+              <div className="text-sm font-semibold text-green-100 uppercase tracking-wide">Funnel Stage</div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-primary-600">
-                {analysis.confidence_score
-                  ? `${Math.round(analysis.confidence_score * 100)}%`
-                  : "-"}
+            <div className="bg-purple-600 rounded-xl p-6 text-center shadow-lg hover:shadow-xl transition-all">
+              <div className="text-5xl font-bold text-white mb-2">
+                {analysis.funnel_confidence ? `${Math.round(analysis.funnel_confidence * 100)}%` : "-"}
               </div>
-              <div className="text-sm text-gray-500">Confidence</div>
+              <div className="text-sm font-semibold text-purple-100 uppercase tracking-wide">Confidence</div>
             </div>
           </div>
 
-          {/* Component Scores */}
-          {analysis.component_scores &&
-            analysis.component_scores.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-4">Component Scores</h3>
-                <div className="space-y-3">
-                  {analysis.component_scores.map((score) => (
-                    <div key={score.id} className="flex items-center gap-4">
-                      <div className="w-32 text-sm font-medium">
-                        {score.component_id}
-                      </div>
-                      <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-primary-600 h-2.5 rounded-full"
-                          style={{ width: `${score.score * 100}%` }}
-                        />
-                      </div>
-                      <div className="w-12 text-sm text-right">
-                        {Math.round(score.score * 100)}%
-                      </div>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded ${
-                          score.detected
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {score.detected ? "Present" : "Missing"}
-                      </span>
-                    </div>
-                  ))}
+          {/* Summary */}
+          {analysis.summary && (
+            <div className="mb-8 p-6 bg-blue-50 rounded-xl border-2 border-blue-200 shadow-sm">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-2">
+                    Analysis Summary
+                  </h3>
+                  <p className="text-blue-800 leading-relaxed">{analysis.summary}</p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Component Scores */}
+          {analysis.component_scores && analysis.component_scores.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Component Analysis</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {analysis.component_scores.map((comp) => (
+                  <div
+                    key={comp.id}
+                    className="group p-5 bg-white border-2 border-gray-200 rounded-xl hover:border-primary-300 hover:shadow-lg transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h4 className="font-bold text-gray-900 text-lg">
+                            {comp.component_name}
+                          </h4>
+                          <span
+                            className={`text-xs px-3 py-1 rounded-full font-semibold shadow-sm ${
+                              comp.is_present
+                                ? "bg-green-500 text-white"
+                                : "bg-gray-400 text-white"
+                            }`}
+                          >
+                            {comp.is_present ? "✓ Present" : "✗ Missing"}
+                          </span>
+                        </div>
+                        {comp.what_is_conveyed && (
+                          <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                            <strong className="text-gray-900">What's Conveyed:</strong> {comp.what_is_conveyed}
+                          </p>
+                        )}
+                        {comp.analysis && (
+                          <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                            <strong className="text-gray-900">Analysis:</strong> {comp.analysis}
+                          </p>
+                        )}
+                        {comp.suggested_improvements && (
+                          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mt-3">
+                            <div className="flex items-start gap-2">
+                              <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                              <div className="text-sm text-amber-900">
+                                <strong className="font-semibold">Suggestion:</strong> {comp.suggested_improvements}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="ml-6 text-center">
+                        <div className="text-4xl font-bold text-primary-600">
+                          {comp.score.toFixed(1)}
+                        </div>
+                        <div className="text-xs text-gray-500 font-semibold mt-1">/ 10</div>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                      <div
+                        className={`h-3 rounded-full transition-all duration-500 ${
+                          comp.score >= 8
+                            ? "bg-green-600"
+                            : comp.score >= 5
+                            ? "bg-blue-600"
+                            : "bg-red-600"
+                        }`}
+                        style={{ width: `${(comp.score / 10) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Recommendations */}
-          {analysis.recommendations && analysis.recommendations.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-4">Recommendations</h3>
-              <ul className="space-y-2">
-                {analysis.recommendations.map((rec, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <svg
-                      className="w-5 h-5 text-primary-600 shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
+          {analysis.recommendations && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-amber-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Key Recommendations</h3>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                <pre className="text-sm text-amber-900 whitespace-pre-wrap font-sans leading-relaxed">
+                  {analysis.recommendations}
+                </pre>
+              </div>
             </div>
           )}
 
           {/* Platform Recommendations */}
-          {analysis.platform_recommendations &&
-            Object.keys(analysis.platform_recommendations).length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-4">
-                  Platform Suitability
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(analysis.platform_recommendations).map(
-                    ([platform, score]) => (
-                      <span
-                        key={platform}
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          (score as number) >= 0.7
-                            ? "bg-green-100 text-green-800"
-                            : (score as number) >= 0.4
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-600"
+          {analysis.platform_recommendations && analysis.platform_recommendations.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Platform Recommendations</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {analysis.platform_recommendations.map((plat, idx) => (
+                  <div
+                    key={idx}
+                    className="p-5 bg-linear-to-br from-white to-gray-50 border-2 border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg ${
+                          plat.score >= 70
+                            ? "bg-green-500"
+                            : plat.score >= 50
+                            ? "bg-yellow-500"
+                            : "bg-gray-500"
                         }`}
                       >
-                        {platform}: {Math.round((score as number) * 100)}%
-                      </span>
-                    )
-                  )}
-                </div>
+                        {Math.round(plat.score)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 capitalize text-lg mb-1">
+                          {plat.platform}
+                        </h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">{plat.reason}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-          <div className="flex justify-end pt-4 border-t">
-            <button onClick={onClose} className="btn-primary">
+          <div className="flex justify-end pt-4 border-t-2 border-gray-200">
+            <button onClick={onClose} className="btn-primary px-8 py-3 text-base">
               Close
             </button>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>
