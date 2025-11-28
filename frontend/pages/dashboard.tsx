@@ -209,7 +209,7 @@ export default function DashboardPage() {
                       <td className="py-3 px-4">
                         <span className="text-sm font-medium">
                           {assets.find((a) => a.id === analysis.ad_asset_id)
-                            ?.name || "Unknown"}
+                            ?.title || "Untitled Ad"}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -433,6 +433,82 @@ function UploadModal({
   );
 }
 
+// Generate text report for download
+function generateTextReport(analysis: AdAnalysis): string {
+  const separator = "=".repeat(80);
+  const subSeparator = "-".repeat(80);
+  
+  let report = `${separator}\n`;
+  report += `AD CREATIVE ANALYSIS REPORT\n`;
+  report += `Generated: ${new Date().toLocaleString()}\n`;
+  report += `Analysis ID: ${analysis.id}\n`;
+  report += `${separator}\n\n`;
+
+  // Overview Section
+  report += `OVERVIEW\n${subSeparator}\n`;
+  report += `Overall Score:      ${analysis.overall_score ? Math.round(analysis.overall_score) : 'N/A'}%\n`;
+  report += `Funnel Stage:       ${analysis.funnel_stage || 'N/A'}\n`;
+  report += `Stage Confidence:   ${analysis.funnel_confidence ? Math.round(analysis.funnel_confidence * 100) : 'N/A'}%\n`;
+  report += `Analysis Date:      ${new Date(analysis.created_at).toLocaleString()}\n\n`;
+
+  // Summary Section
+  if (analysis.summary) {
+    report += `EXECUTIVE SUMMARY\n${subSeparator}\n`;
+    report += `${analysis.summary}\n\n`;
+  }
+
+  // Component Scores Section
+  if (analysis.component_scores && analysis.component_scores.length > 0) {
+    report += `COMPONENT ANALYSIS (10 Offer Components)\n${separator}\n\n`;
+    
+    analysis.component_scores.forEach((comp, index) => {
+      report += `${index + 1}. ${comp.component_key}: ${comp.component_name}\n`;
+      report += `   Score: ${comp.score.toFixed(1)}/10 | Status: ${comp.is_present ? '✓ Present' : '✗ Missing'}\n`;
+      report += `   ${subSeparator}\n`;
+      
+      if (comp.what_is_conveyed) {
+        report += `   What's Conveyed:\n`;
+        report += `   ${comp.what_is_conveyed}\n\n`;
+      }
+      
+      if (comp.analysis) {
+        report += `   Analysis:\n`;
+        report += `   ${comp.analysis}\n\n`;
+      }
+      
+      if (comp.suggested_improvements) {
+        report += `   💡 Suggested Improvements:\n`;
+        report += `   ${comp.suggested_improvements}\n\n`;
+      }
+      
+      report += `\n`;
+    });
+  }
+
+  // Recommendations Section
+  if (analysis.recommendations) {
+    report += `KEY RECOMMENDATIONS\n${separator}\n`;
+    report += `${analysis.recommendations}\n\n`;
+  }
+
+  // Platform Recommendations Section
+  if (analysis.platform_recommendations && analysis.platform_recommendations.length > 0) {
+    report += `PLATFORM RECOMMENDATIONS\n${separator}\n\n`;
+    
+    analysis.platform_recommendations.forEach((plat, index) => {
+      report += `${index + 1}. ${plat.platform.toUpperCase()}\n`;
+      report += `   Suitability Score: ${Math.round(plat.score)}/100\n`;
+      report += `   Reasoning: ${plat.reason}\n\n`;
+    });
+  }
+
+  report += `${separator}\n`;
+  report += `End of Report\n`;
+  report += `${separator}\n`;
+
+  return report;
+}
+
 // Analysis Modal Component
 function AnalysisModal({
   analysis,
@@ -443,6 +519,19 @@ function AnalysisModal({
   loading?: boolean;
   onClose: () => void;
 }) {
+  const downloadReport = () => {
+    const report = generateTextReport(analysis);
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analysis-report-${analysis.id}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8 overflow-hidden border border-gray-200">
@@ -459,14 +548,25 @@ function AnalysisModal({
               <h2 className="text-2xl font-bold text-white mb-1">Ad Analysis Details</h2>
               <p className="text-blue-100 text-sm">Detailed component breakdown and recommendations</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={downloadReport}
+                className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-all"
+                title="Download Report"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+              <button
+                onClick={onClose}
+                className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
